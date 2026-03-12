@@ -1,4 +1,4 @@
-## Multimodal Coach (Webcam + Speech)
+## Real-time Presentation/Interview Coach via Computer Vision and Speech Language Models(Webcam + Speech)
 
 ### Structure
 - `src/multimodal_coach`: core package
