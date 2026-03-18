@@ -27,8 +27,9 @@ elif [ -n "$CONDA_PREFIX" ] && [ -f "$CONDA_PREFIX/bin/python" ]; then
   PYTHON="$CONDA_PREFIX/bin/python"
 elif [ -d "$SCRIPT_DIR/venv" ] && [ -f "$SCRIPT_DIR/venv/bin/python" ]; then
   # 3. Use local venv if it exists in the project folder
-  source "$SCRIPT_DIR/venv/bin/activate"
-  PYTHON="$SCRIPT_DIR/venv/bin/python"
+  export VIRTUAL_ENV="$SCRIPT_DIR/venv"
+  export PATH="$VIRTUAL_ENV/bin:$PATH"
+  PYTHON="$VIRTUAL_ENV/bin/python"
   echo "Using local venv environment..."
 else
   # 4. Fallback to Conda 'dslcv2' environment (create if necessary)
