@@ -5,7 +5,7 @@
 # Double-click this file in Finder (or run it from Terminal).
 #
 # Prerequisites (one-time):
-#   conda activate dslcv2
+#   python3 -m venv venv && source venv/bin/activate
 #   pip install -r requirements.txt
 #
 # macOS permissions required on first run:
@@ -16,17 +16,36 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || { echo "ERROR: cannot cd to $SCRIPT_DIR"; exit 1; }
 
-# ── Activate conda env ───────────────────────────────────────────────────────
-CONDA_BASE="$(conda info --base 2>/dev/null || echo /opt/anaconda3)"
-# shellcheck source=/dev/null
-source "$CONDA_BASE/etc/profile.d/conda.sh" 2>/dev/null || \
-  source "$CONDA_BASE/bin/activate" 2>/dev/null || true
+# ── Activate Environment (Local Venv -> Active -> Conda Fallback) ──────
+if [ -d "$SCRIPT_DIR/venv" ] && [ -f "$SCRIPT_DIR/venv/bin/python" ]; then
+  # 1. Highest Priority: Use local venv if it exists in the project folder
+  export VIRTUAL_ENV="$SCRIPT_DIR/venv"
+  export PATH="$VIRTUAL_ENV/bin:$PATH"
+  PYTHON="$VIRTUAL_ENV/bin/python"
+  echo "Using local venv environment..."
+elif [ -n "$VIRTUAL_ENV" ] && [ -f "$VIRTUAL_ENV/bin/python" ]; then
+  # 2. Use currently active standard venv
+  echo "Using active Virtual Environment: $VIRTUAL_ENV"
+  PYTHON="$VIRTUAL_ENV/bin/python"
+elif [ -n "$CONDA_PREFIX" ] && [ -f "$CONDA_PREFIX/bin/python" ] && [ "$(basename "$CONDA_PREFIX")" != "base" ]; then
+  # 3. Use currently active Conda environment (ignore 'base' to prevent accidental hijacks)
+  echo "Using active Conda Environment: $CONDA_PREFIX"
+  PYTHON="$CONDA_PREFIX/bin/python"
+else
+  # 4. Fallback to Conda 'dslcv2' environment (create if necessary)
+  CONDA_BASE="$(conda info --base 2>/dev/null || echo /opt/anaconda3)"
+  # shellcheck source=/dev/null
+  source "$CONDA_BASE/etc/profile.d/conda.sh" 2>/dev/null || \
+    source "$CONDA_BASE/bin/activate" 2>/dev/null || true
+  
+  conda activate dslcv2 2>/dev/null || true
+  PYTHON="$CONDA_BASE/envs/dslcv2/bin/python"
+  echo "Using conda dslcv2 environment..."
+fi
 
-conda activate dslcv2 2>/dev/null || true
-
-# ── Verify mediapipe solutions API is present ────────────────────────────────
-PYTHON="$CONDA_BASE/envs/dslcv2/bin/python"
+# 5. Final Fallback to system python if still not found
 if [ ! -f "$PYTHON" ]; then
+  echo "Warning: Python not found in specific environments, falling back to system python3"
   PYTHON=python3
 fi
 
