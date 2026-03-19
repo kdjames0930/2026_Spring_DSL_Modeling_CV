@@ -7,7 +7,7 @@ class PoseComparator:
     A class to compare sequences of skeletal pose landmarks using Dynamic Time Warping (DTW).
     Designed to be robust to speed variations and scale/translation differences.
     """
-    def __init__(self, window_size: int = 30):
+    def __init__(self, window_size: int = 60):
         """
         Args:
             window_size (int): The number of frames considered per comparison segment.
@@ -28,14 +28,18 @@ class PoseComparator:
         pose_data = np.array(pose_data, dtype=np.float32)
         if pose_data.ndim != 3:
             raise ValueError(f"pose_data must have shape [Frames, Num_Landmarks, 3], got {pose_data.shape}")
+
+        # Landmark indices used for center calculation (shoulders only)
+        # Using structural landmarks avoids face-cluster bias shifting center upward
+        _CENTER_LANDMARKS = [5, 6]  # left_shoulder, right_shoulder (indices within UPPER_BODY_KEYPOINTS)
             
         normalized = np.zeros_like(pose_data)
         
         for i in range(pose_data.shape[0]):
             frame = pose_data[i]
             
-            # 1. Translation Invariance: Center the skeleton around the origin (e.g., its mean position)
-            center = np.mean(frame, axis=0)
+            # 1. Translation Invariance: Center using shoulders only (avoids face-cluster bias)
+            center = np.mean(frame[_CENTER_LANDMARKS], axis=0)
             centered = frame - center
             
             # 2. Scale Invariance: L2 Normalize the flattened frame
@@ -61,7 +65,13 @@ class PoseComparator:
         """
         if len(user_window) == 0 or len(reference_window) == 0:
             return 0.0
-            
+
+        # Use only key upper body landmarks for pose comparison
+        # Excludes redundant eye points, mouth, finger tips, and lower body
+        UPPER_BODY_KEYPOINTS = [0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16]
+        user_window = np.array(user_window)[:, UPPER_BODY_KEYPOINTS, :]
+        reference_window = np.array(reference_window)[:, UPPER_BODY_KEYPOINTS, :]
+
         # Preprocess both sequences to normalize scale and translation
         user_norm = self._preprocess(user_window)
         ref_norm = self._preprocess(reference_window)
@@ -79,16 +89,16 @@ class PoseComparator:
         # The max Euclidean distance between two L2-normalized vectors is 2.
         # The path length reflects how many pointwise comparisons were made in DTW.
         max_possible_distance = 2.0 * len(path)
-        
+
         if max_possible_distance == 0:
             return 1.0
-            
+
         normalized_distance = distance / max_possible_distance
-        
+
         # Convert path distance to a similarity score (0.0 to 1.0)
         # We clamp to ensure bounds. Non-linear scaling (like exp(-dist)) could also be used here.
         similarity = max(0.0, min(1.0, 1.0 - normalized_distance))
-        
+
         return similarity
         
     def compare_full_sequences(self, user_seq: np.ndarray, reference_seq: np.ndarray) -> list:

@@ -81,7 +81,7 @@ class Test4App:
         
         # Test3 - Karaoke
         self.karaoke_trainer = SpeechKaraokeTrainer()
-        self.pose_comparator = PoseComparator(window_size=30)
+        self.pose_comparator = PoseComparator(window_size=60)
         self.gaze_detector = GazeAnxietyDetector()
         self.key_pose_extractor = KeyPoseExtractor(fps=30)
         self.expression_analyzer = ExpressionAnalyzer()
@@ -602,17 +602,18 @@ class Test4App:
         # Draw Gesture Similarity with DTW Sliding Window
         if results.pose_landmarks:
             user_pts = np.array([[lm.x, lm.y, lm.z] for lm in results.pose_landmarks.landmark])
+            self.user_pose_buffer.append(user_pts)
+            if len(self.user_pose_buffer) > 60:  # 60 frames (~2s at 30fps)
+                self.user_pose_buffer.pop(0)
         else:
-            user_pts = np.zeros((33, 3))
-            
-        self.user_pose_buffer.append(user_pts)
-        if len(self.user_pose_buffer) > 30:
-            self.user_pose_buffer.pop(0)
+            self.user_pose_buffer.clear()
 
         similarity_pct = 0.0
+        REACTION_OFFSET = 6  # ~0.2s at 30fps: ref is shifted back to account for user reaction delay
         if self.ref_raw_poses is not None and len(self.user_pose_buffer) >= 5:
-            start_ref = max(0, ref_idx - len(self.user_pose_buffer) + 1)
-            ref_window = self.ref_raw_poses[start_ref:ref_idx+1]
+            end_ref = max(0, ref_idx - REACTION_OFFSET + 1)
+            start_ref = max(0, end_ref - len(self.user_pose_buffer))
+            ref_window = self.ref_raw_poses[start_ref:end_ref]
             if len(ref_window) > 0:
                 score = self.pose_comparator.compare_realtime(np.array(self.user_pose_buffer), ref_window)
                 similarity_pct = score * 100

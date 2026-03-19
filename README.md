@@ -35,6 +35,8 @@ The first time macOS will ask "allow Terminal to access camera/microphone" — c
 ```bash
 conda activate dslcv2
 PYTHONPATH=src python apps/run_multimodal_coach.py
+# Windoes Powershell 에서 실행하는 경우
+$env:PYTHONPATH="src"; python apps/run_multimodal_coach.py
 ```
 
 ---
